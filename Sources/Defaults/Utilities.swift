@@ -166,7 +166,7 @@ extension Collection {
 }
 
 extension Equatable {
-	func isEqual(_ rhs: any Equatable) -> Bool {
+	func isEqual(_ rhs: some Equatable) -> Bool {
 		guard
 			let rhs = rhs as? Self,
 			rhs == self
@@ -370,10 +370,9 @@ final class TaskQueue {
 	func flush() async {
 		await withCheckedContinuation { continuation in
 			lock.with {
-				queueContinuation?.yield {
+				_ = queueContinuation?.yield {
 					continuation.resume()
 				}
-				return
 			}
 		}
 	}
