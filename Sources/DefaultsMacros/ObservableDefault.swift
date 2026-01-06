@@ -40,7 +40,7 @@ final class CatModel {
 ```
 */
 @attached(accessor, names: named(get), named(set))
-@attached(peer, names: prefixed(`_objcAssociatedKey_`))
+@attached(peer, names: prefixed(`_observationTask_`))
 public macro ObservableDefault<Value>(_ key: Defaults.Key<Value>) =
 	#externalMacro(
 		module: "DefaultsMacrosDeclarations",

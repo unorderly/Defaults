@@ -183,7 +183,7 @@ final class DefaultsStressTests {
 		}
 
 		// Give time for observations to fire
-		try? await Task.sleep(for: .milliseconds(100))
+		try? await Task.sleep(nanoseconds: 100 * 1_000_000)
 
 		// Each of 10 observers should see 10 updates
 		#expect(observationCount.wrappedValue == 100)

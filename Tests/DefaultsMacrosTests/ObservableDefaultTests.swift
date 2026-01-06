@@ -58,6 +58,7 @@ private final class TestModelWithMemberSyntax {
 	var animal: String
 }
 
+
 @available(macOS 14, iOS 17, tvOS 17, watchOS 10, visionOS 1, *)
 @Observable
 private final class TestModelWithMultipleValues {
@@ -108,6 +109,7 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -130,6 +132,7 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -152,6 +155,7 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -174,6 +178,7 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -201,6 +206,7 @@ final class ObservableDefaultTests {
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
 			UserDefaults.standard.set(newColor, forKey: colorKey)
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -238,6 +244,7 @@ final class ObservableDefaultTests {
 
 			// Write through model1
 			model1.testSet = [1, 2, 3]
+			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		// model2 should have observed the change
