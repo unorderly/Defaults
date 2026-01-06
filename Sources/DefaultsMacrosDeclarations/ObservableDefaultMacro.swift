@@ -25,23 +25,27 @@ extension ObservableDefaultMacro: AccessorMacro {
 		// The get/set accessors follow the same pattern that @Observable uses to handle the mutations.
 		//
 		// The get accessor also sets up an observation to update the value when the UserDefaults
-		// changes from elsewhere. Doing so requires attaching it as an Objective-C associated
-		// object due to limitations with current macro capabilities and Swift concurrency.
-		//
-		// To prevent infinite recursion, we use Defaults.withoutPropagation in the observation
-		// callback. This ensures that when the callback updates the property, it doesn't trigger
-		// observers again, while still allowing normal writes to propagate to other observers.
+		// changes from elsewhere.
 		return [
 			#"""
 			get {
-				if objc_getAssociatedObject(self, &Self.\#(associatedKey)) == nil {
-					let cancellable = Defaults.publisher(\#(expression))
-						.sink { [weak self] change in
-							Defaults.withoutPropagation {
-								self?.\#(property) = change.newValue
-							}
+				if \#(associatedKey) == nil {
+					class UnsafeNonIsolatedBox<Value: AnyObject>: @unchecked Sendable {
+						weak nonisolated(unsafe) var inner: Value?
+
+						init(inner: Value) {
+							self.inner = inner
 						}
-					objc_setAssociatedObject(self, &Self.\#(associatedKey), cancellable, .OBJC_ASSOCIATION_RETAIN)
+					}
+					let selfBox = UnsafeNonIsolatedBox(inner: self)
+					\#(associatedKey) = Task<Void, Never> {
+						for await _ in Defaults.updates(\#(expression), initial: false) {
+							guard let self = selfBox.inner else {
+							   return
+							}
+							self.withMutation(keyPath: \.\#(property)) { }
+						}
+					}
 				}
 				access(keyPath: \.\#(property))
 				return Defaults[\#(expression)]
@@ -72,7 +76,7 @@ extension ObservableDefaultMacro: PeerMacro {
 		let associatedKey = associatedKeyToken(for: property)
 
 		return [
-			"private nonisolated(unsafe) static var \(associatedKey): Void?"
+			"private nonisolated(unsafe) var \(associatedKey): Task<Void, Never>?"
 		]
 	}
 }
@@ -148,7 +152,7 @@ extension ObservableDefaultMacro {
 	 Generates the token to use as key for the associated object used to hold the UserDefaults observation.
 	 */
 	private static func associatedKeyToken(for property: TokenSyntax) -> TokenSyntax {
-		"_objcAssociatedKey_\(property)"
+		"_observationTask_\(property)"
 	}
 }
 

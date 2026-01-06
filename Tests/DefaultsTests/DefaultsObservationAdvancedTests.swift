@@ -39,7 +39,7 @@ final class DefaultsObservationAdvancedTests {
 			}
 
 			// Wait for initial observation
-			try await Task.sleep(for: .milliseconds(10))
+			try await Task.sleep(nanoseconds: 10 * 1_000_000)
 
 			// Normal change should trigger observation
 			Defaults[.preventPropagationTest] = "external_change"
@@ -72,7 +72,7 @@ final class DefaultsObservationAdvancedTests {
 			}
 
 			// Wait for initial observations
-			try await Task.sleep(for: .milliseconds(10))
+			try await Task.sleep(nanoseconds: 10 * 1_000_000)
 
 			// Both should get update notification
 			Defaults[.observationTest] = "changed"
@@ -108,7 +108,8 @@ final class DefaultsObservationAdvancedTests {
 		Defaults[.observationTest] = "test2"
 
 		// Wait a bit to ensure no observation fires
-		try? await Task.sleep(for: .milliseconds(50))
+
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 		#expect(changeCount == 1) // Should still be 1
 	}
 
@@ -125,7 +126,7 @@ final class DefaultsObservationAdvancedTests {
 			.tieToLifetime(of: owner!)
 
 			// Wait for initial observation
-			try await Task.sleep(for: .milliseconds(10))
+			try await Task.sleep(nanoseconds: 10 * 1_000_000)
 
 			// Change value
 			Defaults[.observationTest] = "tied_test"
@@ -139,13 +140,13 @@ final class DefaultsObservationAdvancedTests {
 		owner = nil
 
 		// Give time for cleanup
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Further changes should not trigger observation
 		let countBefore = changeCount
 		Defaults[.observationTest] = "after_owner_released"
 
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 		#expect(changeCount == countBefore) // Should not have changed
 	}
 
@@ -162,7 +163,7 @@ final class DefaultsObservationAdvancedTests {
 			.tieToLifetime(of: owner)
 
 			// Wait for initial observation
-			try await Task.sleep(for: .milliseconds(10))
+			try await Task.sleep(nanoseconds: 10 * 1_000_000)
 
 			// Remove lifetime tie
 			observation.removeLifetimeTie()
@@ -180,7 +181,7 @@ final class DefaultsObservationAdvancedTests {
 		let countBefore = changeCount
 		Defaults[.observationTest] = "after_invalidation"
 
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 		#expect(changeCount == countBefore)
 	}
 
@@ -203,7 +204,7 @@ final class DefaultsObservationAdvancedTests {
 		}
 
 		// Wait for observations to complete
-		try? await Task.sleep(for: .milliseconds(100))
+		try? await Task.sleep(nanoseconds: 100 * 1_000_000)
 
 		// Should have observed initial + many changes
 		#expect(observationCount.wrappedValue > 100)
@@ -226,14 +227,14 @@ final class DefaultsObservationAdvancedTests {
 		}
 
 		// Initial value should be received
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Make some updates
 		Defaults[key] = "update1"
-		try? await Task.sleep(for: .milliseconds(25))
+		try? await Task.sleep(nanoseconds: 25 * 1_000_000)
 
 		Defaults[key] = "update2"
-		try? await Task.sleep(for: .milliseconds(25))
+		try? await Task.sleep(nanoseconds: 25 * 1_000_000)
 
 		Defaults[key] = "update3"
 
@@ -260,11 +261,11 @@ final class DefaultsObservationAdvancedTests {
 		}
 
 		// Give a moment for stream to be set up
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Make some updates
 		Defaults[key] = "update1"
-		try? await Task.sleep(for: .milliseconds(25))
+		try? await Task.sleep(nanoseconds: 25 * 1_000_000)
 
 		Defaults[key] = "update2"
 
@@ -291,11 +292,11 @@ final class DefaultsObservationAdvancedTests {
 		}
 
 		// Give initial values time to be received
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Update first key
 		Defaults[key1] = "changed1"
-		try? await Task.sleep(for: .milliseconds(25))
+		try? await Task.sleep(nanoseconds: 25 * 1_000_000)
 
 		// Update second key
 		Defaults[key2] = 42
@@ -326,11 +327,11 @@ final class DefaultsObservationAdvancedTests {
 		}
 
 		// Give initial notification time to be received
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Update keys
 		Defaults[key1] = "changed1"
-		try? await Task.sleep(for: .milliseconds(25))
+		try? await Task.sleep(nanoseconds: 25 * 1_000_000)
 
 		Defaults[key2] = 42
 
@@ -352,11 +353,11 @@ final class DefaultsObservationAdvancedTests {
 
 		// Update first key
 		Defaults[key1] = "changed"
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Update second key  
 		Defaults[key2] = 42
-		try? await Task.sleep(for: .milliseconds(50))
+		try? await Task.sleep(nanoseconds: 50 * 1_000_000)
 
 		// Should have observed at least the key changes
 		#expect(updateCount >= 2, "Should have observed key changes")
