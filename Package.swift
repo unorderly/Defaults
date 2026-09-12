@@ -1,4 +1,4 @@
-// swift-tools-version:5.11
+// swift-tools-version:6.2
 import PackageDescription
 import CompilerPluginSupport
 
@@ -26,22 +26,21 @@ let package = Package(
 		)
 	],
 	dependencies: [
-		.package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0")
+		.package(url: "https://github.com/swiftlang/swift-syntax", "600.0.0"..<"606.0.0")
 	],
 	targets: [
 		.target(
 			name: "Defaults",
 			resources: [
 				.copy("PrivacyInfo.xcprivacy")
+			],
+			swiftSettings: [
+				.swiftLanguageMode(.v5)
 			]
-//			swiftSettings: [
-//				.swiftLanguageMode(.v5)
-//			]
 		),
 		.macro(
 			name: "DefaultsMacrosDeclarations",
 			dependencies: [
-				"Defaults",
 				.product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
 				.product(name: "SwiftCompilerPlugin", package: "swift-syntax")
 			]
@@ -54,10 +53,10 @@ let package = Package(
 			name: "DefaultsTests",
 			dependencies: [
 				"Defaults"
+			],
+			swiftSettings: [
+				.swiftLanguageMode(.v5)
 			]
-//			swiftSettings: [
-//				.swiftLanguageMode(.v5)
-//			]
 		),
 		.testTarget(
 			name: "DefaultsMacrosDeclarationsTests",
