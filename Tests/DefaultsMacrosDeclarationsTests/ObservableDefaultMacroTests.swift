@@ -87,8 +87,9 @@ final class ObservableDefaultMacroTests: XCTestCase {
 			var name: String {
 				get {
 					let taskStorage = Self._observationTask_name
-					if !taskStorage.containsTask(for: self) {
+					taskStorage.installIfNeeded(for: self, create: {
 						let updates = Defaults.updates(\#(keyExpression), initial: false)
+						let (startStream, startContinuation) = AsyncStream<Void>.makeStream()
 						class WeakOwnerBox<Value: AnyObject>: @unchecked Sendable {
 							// The task below inherits this accessor's actor. This box only
 							// carries a weak reference, whose zeroing is managed by ARC.
@@ -100,6 +101,10 @@ final class ObservableDefaultMacroTests: XCTestCase {
 						}
 						let selfBox = WeakOwnerBox(inner: self)
 						let task = Task<Void, Never> { [selfBox, updates] in
+							var startIterator = startStream.makeAsyncIterator()
+							guard await startIterator.next() != nil else {
+								return
+							}
 							for await _ in updates {
 								guard let self = selfBox.value else {
 									return
@@ -107,8 +112,11 @@ final class ObservableDefaultMacroTests: XCTestCase {
 								self.withMutation(keyPath: \.name) { }
 							}
 						}
-						taskStorage.store(task, for: self)
-					}
+						return (task: task, start: startContinuation)
+					}, start: { startContinuation in
+						startContinuation.yield()
+						startContinuation.finish()
+					})
 					access(keyPath: \.name)
 					return Defaults[\#(keyExpression)]
 				}

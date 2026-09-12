@@ -90,6 +90,25 @@ private final class MainActorTestModel {
 	var value: String
 }
 
+private final class ConcurrentStorageOwner: @unchecked Sendable {}
+
+private final class LockedCounter: @unchecked Sendable {
+	private let lock = NSLock()
+	private var count = 0
+
+	func increment() {
+		lock.lock()
+		count += 1
+		lock.unlock()
+	}
+
+	func value() -> Int {
+		lock.lock()
+		defer { lock.unlock() }
+		return count
+	}
+}
+
 @Suite(.serialized)
 final class ObservableDefaultTests {
 	init() {
@@ -270,11 +289,75 @@ final class ObservableDefaultTests {
 				valueDidChange()
 			}
 
-			await Task.detached {
+			Task.detached {
 				Defaults[.mainActorValue] = newMainActorValue
-			}.value
+			}
 		}
 
 		#expect(model.value == newMainActorValue)
+	}
+
+	@Test
+	func testConcurrentFirstAccessInstallsOneTask() async {
+		let storage = Defaults.ObservableDefaultTaskStorage()
+		let owner = ConcurrentStorageOwner()
+		let installCount = LockedCounter()
+
+		await withTaskGroup(of: Void.self) { group in
+			for _ in 0..<16 {
+				group.addTask {
+					storage.installIfNeeded(for: owner, create: {
+						installCount.increment()
+						let (stream, continuation) = AsyncStream<Void>.makeStream()
+						let task = Task<Void, Never> {
+							for await _ in stream {}
+						}
+						return (task: task, start: continuation)
+					}, start: { continuation in
+						continuation.finish()
+					})
+				}
+			}
+		}
+
+		#expect(installCount.value() == 1)
+	}
+
+	@Test
+	func testTaskStorageCancelsWhenOwnerDeinitializes() async {
+		let storage = Defaults.ObservableDefaultTaskStorage()
+		var owner: NSObject? = NSObject()
+		let (startedStream, startedContinuation) = AsyncStream<Void>.makeStream()
+		let (terminationStream, terminationContinuation) = AsyncStream<Void>.makeStream()
+
+		storage.installIfNeeded(for: owner!, create: {
+			let (updates, updatesContinuation) = AsyncStream<Void>.makeStream()
+			updatesContinuation.onTermination = { _ in
+				terminationContinuation.yield()
+				terminationContinuation.finish()
+			}
+			let (startStream, startContinuation) = AsyncStream<Void>.makeStream()
+			let task = Task<Void, Never> { [updates, updatesContinuation, startStream] in
+				defer { updatesContinuation.finish() }
+				var startIterator = startStream.makeAsyncIterator()
+				guard await startIterator.next() != nil else {
+					return
+				}
+				startedContinuation.yield()
+				startedContinuation.finish()
+				for await _ in updates {}
+			}
+			return (task: task, start: startContinuation)
+		}, start: { startContinuation in
+			startContinuation.yield()
+			startContinuation.finish()
+		})
+
+		var startedIterator = startedStream.makeAsyncIterator()
+		_ = await startedIterator.next()
+		owner = nil
+
+		var terminationIterator = terminationStream.makeAsyncIterator()
+		_ = await terminationIterator.next()
 	}
 }

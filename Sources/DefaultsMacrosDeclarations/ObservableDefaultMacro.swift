@@ -30,8 +30,9 @@ extension ObservableDefaultMacro: AccessorMacro {
 			#"""
 			get {
 				let taskStorage = Self.\#(associatedKey)
-				if !taskStorage.containsTask(for: self) {
+				taskStorage.installIfNeeded(for: self, create: {
 					let updates = Defaults.updates(\#(expression), initial: false)
+					let (startStream, startContinuation) = AsyncStream<Void>.makeStream()
 					class WeakOwnerBox<Value: AnyObject>: @unchecked Sendable {
 						// The task below inherits this accessor's actor. This box only
 						// carries a weak reference, whose zeroing is managed by ARC.
@@ -43,6 +44,10 @@ extension ObservableDefaultMacro: AccessorMacro {
 					}
 					let selfBox = WeakOwnerBox(inner: self)
 					let task = Task<Void, Never> { [selfBox, updates] in
+						var startIterator = startStream.makeAsyncIterator()
+						guard await startIterator.next() != nil else {
+							return
+						}
 						for await _ in updates {
 							guard let self = selfBox.value else {
 								return
@@ -50,8 +55,11 @@ extension ObservableDefaultMacro: AccessorMacro {
 							self.withMutation(keyPath: \.\#(property)) { }
 						}
 					}
-					taskStorage.store(task, for: self)
-				}
+					return (task: task, start: startContinuation)
+				}, start: { startContinuation in
+					startContinuation.yield()
+					startContinuation.finish()
+				})
 				access(keyPath: \.\#(property))
 				return Defaults[\#(expression)]
 			}
@@ -68,8 +76,7 @@ extension ObservableDefaultMacro: AccessorMacro {
 }
 
 /**
-Conforming to ``PeerMacro`` we can add a new property of type Defaults.Observation that will update the original property whenever
-the UserDefaults value changes outside the class.
+Conforming to ``PeerMacro`` adds static storage for the task that updates the original property whenever the UserDefaults value changes outside the class.
 */
 extension ObservableDefaultMacro: PeerMacro {
 	public static func expansion(

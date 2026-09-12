@@ -3,19 +3,33 @@ Stores a macro-generated Defaults observation task with its owning model.
 
 The task is cancelled when that owner deinitializes.
 */
+@_documentation(visibility: private)
 public final class ObservableDefaultTaskStorage: @unchecked Sendable {
-	// The association only uses Objective-C associated-object operations, which are thread-safe.
-	// Its values only retain a Task, whose cancellation is thread-safe.
+	// This lock makes lookup, stream registration, task construction, and association one operation.
+	// The associated-object calls are non-atomic, so they are never used outside this critical section.
+	// The `@unchecked Sendable` invariant is that the lock guards all storage access and retained Tasks
+	// are only cancelled, which is thread-safe.
+	private let lock: Lock = .make()
 	private let taskLifetimes = ObjectAssociation<TaskLifetime>()
 
 	public init() {}
 
-	public func containsTask(for owner: AnyObject) -> Bool {
-		taskLifetimes[owner] != nil
-	}
+	public func installIfNeeded<Start>(
+		for owner: AnyObject,
+		create: () -> (task: Task<Void, Never>, start: Start),
+		start: (Start) -> Void
+	) {
+		lock.lock()
+		guard taskLifetimes[owner] == nil else {
+			lock.unlock()
+			return
+		}
 
-	public func store(_ task: Task<Void, Never>, for owner: AnyObject) {
-		taskLifetimes[owner] = TaskLifetime(task)
+		let installation = create()
+		taskLifetimes[owner] = TaskLifetime(installation.task)
+		lock.unlock()
+
+		start(installation.start)
 	}
 
 	private final class TaskLifetime {
