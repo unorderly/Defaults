@@ -109,7 +109,7 @@ private final class LockedCounter: @unchecked Sendable {
 	}
 }
 
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(1)))
 final class ObservableDefaultTests {
 	init() {
 		Defaults.removeAll()
