@@ -86,14 +86,28 @@ final class ObservableDefaultMacroTests: XCTestCase {
 			@ObservationIgnored
 			var name: String {
 				get {
-					if objc_getAssociatedObject(self, &Self._objcAssociatedKey_name) == nil {
-						let cancellable = Defaults.publisher(\#(keyExpression))
-							.sink { [weak self] change in
-								Defaults.withoutPropagation {
-									self?.name = change.newValue
-								}
+					let taskStorage = Self._observationTask_name
+					if !taskStorage.containsTask(for: self) {
+						let updates = Defaults.updates(\#(keyExpression), initial: false)
+						class WeakOwnerBox<Value: AnyObject>: @unchecked Sendable {
+							// The task below inherits this accessor's actor. This box only
+							// carries a weak reference, whose zeroing is managed by ARC.
+							weak var value: Value?
+
+							init(inner: Value) {
+								self.value = inner
 							}
-						objc_setAssociatedObject(self, &Self._objcAssociatedKey_name, cancellable, .OBJC_ASSOCIATION_RETAIN)
+						}
+						let selfBox = WeakOwnerBox(inner: self)
+						let task = Task<Void, Never> { [selfBox, updates] in
+							for await _ in updates {
+								guard let self = selfBox.value else {
+									return
+								}
+								self.withMutation(keyPath: \.name) { }
+							}
+						}
+						taskStorage.store(task, for: self)
 					}
 					access(keyPath: \.name)
 					return Defaults[\#(keyExpression)]
@@ -105,7 +119,7 @@ final class ObservableDefaultMacroTests: XCTestCase {
 				}
 			}
 
-			private nonisolated(unsafe) static var _objcAssociatedKey_name: Void?
+			private static let _observationTask_name = Defaults.ObservableDefaultTaskStorage()
 		}
 		"""#
 	}

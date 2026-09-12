@@ -13,11 +13,15 @@ private let defaultColor = "blue"
 private let newColor = "purple"
 
 private let testSetKey = "testSetKey"
+private let mainActorKey = "mainActorKey"
+private let defaultMainActorValue = "before"
+private let newMainActorValue = "after"
 
 extension Defaults.Keys {
 	static let animal = Defaults.Key(animalKey, default: defaultAnimal)
 	static let color = Defaults.Key(colorKey, default: defaultColor)
 	static let testSet = Defaults.Key(testSetKey, default: Set<Int>())
+	static let mainActorValue = Defaults.Key(mainActorKey, default: defaultMainActorValue)
 }
 
 func getKey() -> Defaults.Key<String> {
@@ -58,7 +62,6 @@ private final class TestModelWithMemberSyntax {
 	var animal: String
 }
 
-
 @available(macOS 14, iOS 17, tvOS 17, watchOS 10, visionOS 1, *)
 @Observable
 private final class TestModelWithMultipleValues {
@@ -79,6 +82,14 @@ private final class TestModelWithSet {
 	var testSet: Set<Int>
 }
 
+@available(macOS 14, iOS 17, tvOS 17, watchOS 10, visionOS 1, *)
+@MainActor @Observable
+private final class MainActorTestModel {
+	@ObservableDefault(.mainActorValue)
+	@ObservationIgnored
+	var value: String
+}
+
 @Suite(.serialized)
 final class ObservableDefaultTests {
 	init() {
@@ -86,6 +97,7 @@ final class ObservableDefaultTests {
 		Defaults[.animal] = defaultAnimal
 		Defaults[.color] = defaultColor
 		Defaults[.testSet] = []
+		Defaults[.mainActorValue] = defaultMainActorValue
 	}
 
 	deinit {
@@ -109,7 +121,6 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -132,7 +143,6 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -155,7 +165,6 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -178,7 +187,6 @@ final class ObservableDefaultTests {
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -206,7 +214,6 @@ final class ObservableDefaultTests {
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
 			UserDefaults.standard.set(newColor, forKey: colorKey)
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		#expect(model.animal == newAnimal)
@@ -244,10 +251,30 @@ final class ObservableDefaultTests {
 
 			// Write through model1
 			model1.testSet = [1, 2, 3]
-			try? await Task.sleep(nanoseconds: 10 * 1_000_000)
 		}
 
 		// model2 should have observed the change
 		#expect(model2.testSet == [1, 2, 3])
+	}
+
+	@available(macOS 14, iOS 17, tvOS 17, watchOS 10, visionOS 1, *)
+	@Test @MainActor
+	func testMainActorModelObservesExternalWrite() async {
+		let model = MainActorTestModel()
+		#expect(model.value == defaultMainActorValue)
+
+		await confirmation { valueDidChange in
+			_ = withObservationTracking {
+				model.value
+			} onChange: {
+				valueDidChange()
+			}
+
+			await Task.detached {
+				Defaults[.mainActorValue] = newMainActorValue
+			}.value
+		}
+
+		#expect(model.value == newMainActorValue)
 	}
 }

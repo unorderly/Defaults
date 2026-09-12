@@ -29,23 +29,28 @@ extension ObservableDefaultMacro: AccessorMacro {
 		return [
 			#"""
 			get {
-				if \#(associatedKey) == nil {
-					class UnsafeNonIsolatedBox<Value: AnyObject>: @unchecked Sendable {
-						weak nonisolated(unsafe) var inner: Value?
+				let taskStorage = Self.\#(associatedKey)
+				if !taskStorage.containsTask(for: self) {
+					let updates = Defaults.updates(\#(expression), initial: false)
+					class WeakOwnerBox<Value: AnyObject>: @unchecked Sendable {
+						// The task below inherits this accessor's actor. This box only
+						// carries a weak reference, whose zeroing is managed by ARC.
+						weak var value: Value?
 
 						init(inner: Value) {
-							self.inner = inner
+							self.value = inner
 						}
 					}
-					let selfBox = UnsafeNonIsolatedBox(inner: self)
-					\#(associatedKey) = Task<Void, Never> {
-						for await _ in Defaults.updates(\#(expression), initial: false) {
-							guard let self = selfBox.inner else {
-							   return
+					let selfBox = WeakOwnerBox(inner: self)
+					let task = Task<Void, Never> { [selfBox, updates] in
+						for await _ in updates {
+							guard let self = selfBox.value else {
+								return
 							}
 							self.withMutation(keyPath: \.\#(property)) { }
 						}
 					}
+					taskStorage.store(task, for: self)
 				}
 				access(keyPath: \.\#(property))
 				return Defaults[\#(expression)]
@@ -76,7 +81,7 @@ extension ObservableDefaultMacro: PeerMacro {
 		let associatedKey = associatedKeyToken(for: property)
 
 		return [
-			"private nonisolated(unsafe) var \(associatedKey): Task<Void, Never>?"
+			"private static let \(associatedKey) = Defaults.ObservableDefaultTaskStorage()"
 		]
 	}
 }
@@ -149,7 +154,7 @@ extension ObservableDefaultMacro {
 	}
 
 	/**
-	 Generates the token to use as key for the associated object used to hold the UserDefaults observation.
+	 Generates the static task-storage property name for the UserDefaults observation.
 	 */
 	private static func associatedKeyToken(for property: TokenSyntax) -> TokenSyntax {
 		"_observationTask_\(property)"
