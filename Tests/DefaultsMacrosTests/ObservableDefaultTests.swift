@@ -132,14 +132,19 @@ final class ObservableDefaultTests {
 		let userDefaultsValue = UserDefaults.standard.string(forKey: animalKey)
 		#expect(userDefaultsValue == defaultAnimal)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { confirmation in
 			_ = withObservationTracking {
 				model.animal
 			} onChange: {
 				confirmation()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		#expect(model.animal == newAnimal)
@@ -154,14 +159,19 @@ final class ObservableDefaultTests {
 		let userDefaultsValue = UserDefaults.standard.string(forKey: animalKey)
 		#expect(userDefaultsValue == defaultAnimal)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { confirmation in
 			_ = withObservationTracking {
 				model.animal
 			} onChange: {
 				confirmation()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		#expect(model.animal == newAnimal)
@@ -176,14 +186,19 @@ final class ObservableDefaultTests {
 		let userDefaultsValue = UserDefaults.standard.string(forKey: animalKey)
 		#expect(userDefaultsValue == defaultAnimal)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { confirmation in
 			_ = withObservationTracking {
 				model.animal
 			} onChange: {
 				confirmation()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		#expect(model.animal == newAnimal)
@@ -198,14 +213,19 @@ final class ObservableDefaultTests {
 		let userDefaultsValue = UserDefaults.standard.string(forKey: animalKey)
 		#expect(userDefaultsValue == defaultAnimal)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { confirmation in
 			_ = withObservationTracking {
 				model.animal
 			} onChange: {
 				confirmation()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		#expect(model.animal == newAnimal)
@@ -218,21 +238,31 @@ final class ObservableDefaultTests {
 		#expect(model.animal == defaultAnimal)
 		#expect(model.color == defaultColor)
 
+		let (animalChangeStream, animalChangeContinuation) = AsyncStream<Void>.makeStream()
+		let (colorChangeStream, colorChangeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation(expectedCount: 2) { confirmation in
 			_ = withObservationTracking {
 				model.animal
 			} onChange: {
 				confirmation()
+				animalChangeContinuation.yield()
+				animalChangeContinuation.finish()
 			}
 
 			_ = withObservationTracking {
 				model.color
 			} onChange: {
 				confirmation()
+				colorChangeContinuation.yield()
+				colorChangeContinuation.finish()
 			}
 
 			UserDefaults.standard.set(newAnimal, forKey: animalKey)
 			UserDefaults.standard.set(newColor, forKey: colorKey)
+			var animalChangeIterator = animalChangeStream.makeAsyncIterator()
+			_ = await animalChangeIterator.next()
+			var colorChangeIterator = colorChangeStream.makeAsyncIterator()
+			_ = await colorChangeIterator.next()
 		}
 
 		#expect(model.animal == newAnimal)
@@ -261,15 +291,20 @@ final class ObservableDefaultTests {
 		#expect(model1.testSet.isEmpty)
 		#expect(model2.testSet.isEmpty)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { confirmation in
 			_ = withObservationTracking {
 				model2.testSet
 			} onChange: {
 				confirmation()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			// Write through model1
 			model1.testSet = [1, 2, 3]
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		// model2 should have observed the change
@@ -282,16 +317,21 @@ final class ObservableDefaultTests {
 		let model = MainActorTestModel()
 		#expect(model.value == defaultMainActorValue)
 
+		let (changeStream, changeContinuation) = AsyncStream<Void>.makeStream()
 		await confirmation { valueDidChange in
 			_ = withObservationTracking {
 				model.value
 			} onChange: {
 				valueDidChange()
+				changeContinuation.yield()
+				changeContinuation.finish()
 			}
 
 			Task.detached {
 				Defaults[.mainActorValue] = newMainActorValue
 			}
+			var changeIterator = changeStream.makeAsyncIterator()
+			_ = await changeIterator.next()
 		}
 
 		#expect(model.value == newMainActorValue)
